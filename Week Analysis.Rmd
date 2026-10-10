@@ -1,0 +1,567 @@
+---
+title: "Week Analysis"
+author: "Madison Montemayor-Dominguez"
+date: "2025-07-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(lmerTest)
+library(sjstats)
+library(psych)
+library(ggplot2)
+library(dplyr)
+library(naniar)
+library(Matrix)
+library(effectsize)
+library(tidyverse)
+
+citation()
+version$version.string
+```
+
+#Read in Data
+```{r, include=TRUE}
+FullTotals <- readRDS("fulltotals.rds")
+
+PrePostTotals <- readRDS("preposttotals.rds")
+
+Week_Totals <- readRDS("weektotals.rds")
+```
+
+# SWB & CEI - Regressed Change
+```{r, include=TRUE}
+
+RegChange_SWLS <- lm(Post_SWLS ~ Pre_SWLS + condition_dummy, PrePostTotals)
+summary(RegChange_SWLS)
+
+RegChange_PA <- lm(Post_PA ~ Pre_PA + condition_dummy, PrePostTotals)
+summary(RegChange_PA)
+
+RegChange_NA <- lm(Post_NA ~ Pre_NA + condition_dummy, PrePostTotals)
+summary(RegChange_NA)
+
+RegChange_CEI <- lm(Post_CEI ~ Pre_CEI + condition_dummy, PrePostTotals)
+summary(RegChange_CEI)
+
+RegChange_CEIStretch <- lm(Post_CEI.Stretch ~ Pre_CEI.Stretch + condition_dummy, PrePostTotals)
+summary(RegChange_CEIStretch)
+
+RegChange_CEIEmbrace <- lm(Post_CEI.Embrace ~ Pre_CEI.Embrace + condition_dummy, PrePostTotals)
+summary(RegChange_CEIEmbrace)
+
+#Effort
+RegChange_SWLSeff <- lm(Post_SWLS ~ Pre_SWLS + condition_dummy*CompletedCheckins, PrePostTotals)
+summary(RegChange_SWLSeff)
+
+RegChange_PAeff <- lm(Post_PA ~ Pre_PA + condition_dummy*CompletedCheckins, PrePostTotals)
+summary(RegChange_PAeff)
+
+RegChange_NAeff <- lm(Post_NA ~ Pre_NA + condition_dummy*CompletedCheckins, PrePostTotals)
+summary(RegChange_NAeff)
+
+RegChange_CEIeff <- lm(Post_CEI ~ Pre_CEI + condition_dummy*CompletedCheckins, PrePostTotals)
+summary(RegChange_CEIeff)
+
+RegChange_CEIStretcheff <- lm(Post_CEI.Stretch ~ Pre_CEI.Stretch*condition_dummy + CompletedCheckins, PrePostTotals)
+summary(RegChange_CEIStretcheff)
+
+RegChange_CEIEmbraceeff <- lm(Post_CEI.Embrace ~ Pre_CEI.Embrace*condition_dummy + CompletedCheckins, PrePostTotals)
+summary(RegChange_CEIEmbraceeff)
+
+PrePostTotals$CEI_change <- PrePostTotals$Post_CEI - PrePostTotals$Pre_CEI
+ggplot(PrePostTotals, 
+       aes(x = CompletedCheckins, y = CEI_change)) + 
+       geom_point() + 
+       labs(title = "Trait Curiosity by # of Completed Daily Check-Ins",
+       x = "Completed Check-ins",
+       y = "Changes in Trait Curiosity") 
+
+PrePostTotals$CompletedCheckinsSqd <- PrePostTotals$CompletedCheckins^2
+
+RegChange_CEICheckins <- lm(Post_CEI ~ Pre_CEI + CompletedCheckins, PrePostTotals)
+summary(RegChange_CEICheckins)
+
+RegChange_CEICheckinsSqd <- lm(Post_CEI ~ Pre_CEI + CompletedCheckins + CompletedCheckinsSqd, PrePostTotals)
+summary(RegChange_CEICheckinsSqd)
+
+RegChange_CEICheckinsSqdCond <- lm(Post_CEI ~ Pre_CEI + condition_dummy*CompletedCheckins 
+                                   + condition_dummy*CompletedCheckinsSqd, PrePostTotals)
+summary(RegChange_CEICheckinsSqdCond)
+```
+
+# Estimates with NCS Controlled
+```{r, include=TRUE}
+RegChange_SWLSNCS <- lm(Post_SWLS ~ Pre_SWLS + condition_dummy + Pre_NCS, PrePostTotals)
+summary(RegChange_SWLSNCS)
+
+RegChange_PANCS <- lm(Post_PA ~ Pre_PA + condition_dummy + Pre_NCS, PrePostTotals)
+summary(RegChange_PANCS)
+
+RegChange_NANCS <- lm(Post_NA ~ Pre_NA + condition_dummy + Pre_NCS, PrePostTotals)
+summary(RegChange_NANCS)
+
+RegChange_CEINCS <- lm(Post_CEI ~ Pre_CEI + condition_dummy + Pre_NCS, PrePostTotals)
+summary(RegChange_CEINCS)
+
+
+#Moderation
+RegChange_SWLSNCSmod <- lm(Post_SWLS ~ Pre_SWLS + condition_dummy*Pre_NCS, PrePostTotals)
+summary(RegChange_SWLSNCSmod)
+
+RegChange_PANCSmod <- lm(Post_PA ~ Pre_PA + condition_dummy*Pre_NCS, PrePostTotals)
+summary(RegChange_PANCSmod)
+
+RegChange_NANCSmod <- lm(Post_NA ~ Pre_NA + condition_dummy*Pre_NCS, PrePostTotals)
+summary(RegChange_NANCSmod)
+
+RegChange_CEINCSmod <- lm(Post_CEI ~ Pre_CEI + condition_dummy*Pre_NCS, PrePostTotals)
+summary(RegChange_CEINCSmod)
+
+```
+
+# Estimates with OTE Controlled
+```{r, include=TRUE}
+RegChange_SWLSOTE <- lm(Post_SWLS ~ Pre_SWLS + condition_dummy + Pre_OTE, PrePostTotals)
+summary(RegChange_SWLSOTE)
+
+RegChange_PAOTE <- lm(Post_PA ~ Pre_PA + condition_dummy + Pre_OTE, PrePostTotals)
+summary(RegChange_PAOTE)
+
+RegChange_NAOTE <- lm(Post_NA ~ Pre_NA + condition_dummy + Pre_OTE, PrePostTotals)
+summary(RegChange_NAOTE)
+
+RegChange_CEIOTE <- lm(Post_CEI ~ Pre_CEI + condition_dummy + Pre_OTE, PrePostTotals)
+summary(RegChange_CEIOTE)
+
+#Moderation
+RegChange_SWLSOTEmod <- lm(Post_SWLS ~ Pre_SWLS + condition_dummy*Pre_OTE, PrePostTotals)
+summary(RegChange_SWLSOTEmod) #sig. main effect, almost sig. interaction
+
+RegChange_PAOTEmod <- lm(Post_PA ~ Pre_PA + condition_dummy*Pre_OTE, PrePostTotals)
+summary(RegChange_PAOTEmod) #sig. main effect and interaction 
+
+RegChange_NAOTEmod <- lm(Post_NA ~ Pre_NA + condition_dummy*Pre_OTE, PrePostTotals)
+summary(RegChange_NAOTEmod)
+
+RegChange_CEIOTEmod <- lm(Post_CEI ~ Pre_CEI + condition_dummy*Pre_OTE, PrePostTotals)
+summary(RegChange_CEIOTEmod)
+```
+
+# Exploratory Hypotheses - Regressed Change
+```{r, include=TRUE}
+RegChange_OTE <- lm(Post_OTE ~ Pre_OTE + condition_dummy, PrePostTotals)
+summary(RegChange_OTE)
+
+RegChange_O2 <- lm(Post_O2 ~ Pre_O2 + condition_dummy, PrePostTotals)
+summary(RegChange_O2)
+
+RegChange_QES <- lm(Post_QES ~ Pre_QES + condition_dummy, PrePostTotals)
+summary(RegChange_QES)
+
+RegChange_BMPNauto <- lm(Post_BMPNauto ~ Pre_BMPNauto + condition_dummy, PrePostTotals)
+summary(RegChange_BMPNauto)
+
+RegChange_BMPNcomp <- lm(Post_BMPNcomp ~ Pre_BMPNcomp + condition_dummy, PrePostTotals)
+summary(RegChange_BMPNcomp)
+
+RegChange_BMPNrelate <- lm(Post_BMPNrelate ~ Pre_BMPNrelate + condition_dummy, PrePostTotals)
+summary(RegChange_BMPNrelate)
+
+RegChange_CIT <- lm(Post_CIT ~ Pre_CIT + condition_dummy, PrePostTotals)
+summary(RegChange_CIT)
+
+#Moderation - NCS
+RegChange_OTENCS <- lm(Post_OTE ~ Pre_OTE + condition_dummy*Pre_NCS, PrePostTotals)
+summary(RegChange_OTENCS)
+
+RegChange_O2NCS <- lm(Post_O2 ~ Pre_O2 + condition_dummy*Pre_NCS, PrePostTotals)
+summary(RegChange_O2NCS)
+
+RegChange_QESNCS <- lm(Post_QES ~ Pre_QES + condition_dummy*Pre_NCS, PrePostTotals)
+summary(RegChange_QESNCS) #sig main effect and interaction
+
+RegChange_BMPNautoNCS <- lm(Post_BMPNauto ~ Pre_BMPNauto + condition_dummy*Pre_NCS, PrePostTotals)
+summary(RegChange_BMPNautoNCS)
+
+RegChange_BMPNcompNCS <- lm(Post_BMPNcomp ~ Pre_BMPNcomp + condition_dummy*Pre_NCS, PrePostTotals)
+summary(RegChange_BMPNcompNCS) #sig main effect and near sig. interaction
+
+RegChange_BMPNrelateNCS <- lm(Post_BMPNrelate ~ Pre_BMPNrelate + condition_dummy*Pre_NCS, PrePostTotals)
+summary(RegChange_BMPNrelateNCS)
+
+RegChange_CITNCS <- lm(Post_CIT ~ Pre_CIT + condition_dummy*Pre_NCS, PrePostTotals)
+summary(RegChange_CITNCS)
+
+#Moderation - OTE
+RegChange_O2OTE <- lm(Post_O2 ~ Pre_O2 + condition_dummy*Pre_OTE, PrePostTotals)
+summary(RegChange_O2OTE)
+
+RegChange_QESOTE <- lm(Post_QES ~ Pre_QES + condition_dummy*Pre_OTE, PrePostTotals)
+summary(RegChange_QESOTE) 
+
+RegChange_BMPNautoOTE <- lm(Post_BMPNauto ~ Pre_BMPNauto + condition_dummy*Pre_OTE, PrePostTotals)
+summary(RegChange_BMPNautoOTE)
+
+RegChange_BMPNcompOTE <- lm(Post_BMPNcomp ~ Pre_BMPNcomp + condition_dummy*Pre_OTE, PrePostTotals)
+summary(RegChange_BMPNcompOTE)
+
+RegChange_BMPNrelateOTE <- lm(Post_BMPNrelate ~ Pre_BMPNrelate + condition_dummy*Pre_OTE, PrePostTotals)
+summary(RegChange_BMPNrelateOTE)
+
+RegChange_CITOTE <- lm(Post_CIT ~ Pre_CIT + condition_dummy*Pre_OTE, PrePostTotals)
+summary(RegChange_CITOTE)
+
+#Effort
+RegChange_OTEeff <- lm(Post_OTE ~ Pre_OTE + condition_dummy*CompletedCheckins, PrePostTotals)
+summary(RegChange_OTEeff)
+
+RegChange_O2eff <- lm(Post_O2 ~ Pre_O2 + condition_dummy*CompletedCheckins, PrePostTotals)
+summary(RegChange_O2eff)
+
+RegChange_QESeff <- lm(Post_QES ~ Pre_QES + condition_dummy*CompletedCheckins, PrePostTotals)
+summary(RegChange_QESeff)
+
+RegChange_BMPNautoeff <- lm(Post_BMPNauto ~ Pre_BMPNauto + condition_dummy*CompletedCheckins, PrePostTotals)
+summary(RegChange_BMPNautoeff)
+
+RegChange_BMPNcompeff <- lm(Post_BMPNcomp ~ Pre_BMPNcomp + condition_dummy*CompletedCheckins, PrePostTotals)
+summary(RegChange_BMPNcompeff)
+
+RegChange_BMPNrelateeff <- lm(Post_BMPNrelate ~ Pre_BMPNrelate + condition_dummy*CompletedCheckins, PrePostTotals)
+summary(RegChange_BMPNrelateeff)
+
+RegChange_CITeff <- lm(Post_CIT ~ Pre_CIT + condition_dummy*CompletedCheckins, PrePostTotals)
+summary(RegChange_CITeff)
+```
+
+# Exploratory Hypotheses - Thriving
+```{r, include=TRUE}
+day0_TotalsCIT <- readRDS("day0_TotalsCIT.rds")
+day8_TotalsCIT <- readRDS("day8_TotalsCIT.rds")
+
+PrePostCIT <- merge(day0_TotalsCIT, day8_TotalsCIT, all = F)
+describe(PrePostCIT)
+table(PrePostCIT$Condition)
+describeBy(PrePostCIT, group = PrePostCIT$Condition)
+
+write.csv(PrePostCIT,"CuriosityStudy_PrePostCITData.csv")
+
+RegChange_CIT.Support <- lm(Post_CITSupport ~ Pre_CITSupport + condition_dummy, PrePostCIT)
+summary(RegChange_CIT.Support)
+
+RegChange_CIT.Lonely <- lm(Post_CITLonely ~ Pre_CITLonely + condition_dummy, PrePostCIT)
+summary(RegChange_CIT.Lonely)
+
+RegChange_CIT.Lonely_social <- lm(Post_CITLonely ~ Pre_CITLonely + condition_dummy*Daily_social_percent, PrePostCIT) #social moderator
+summary(RegChange_CIT.Lonely_social)
+
+RegChange_CIT.Belong <- lm(Post_CITBelong ~ Pre_CITBelong + condition_dummy, PrePostCIT)
+summary(RegChange_CIT.Belong)
+
+RegChange_CIT.Engage <- lm(Post_CITEngage ~ Pre_CITEngage + condition_dummy, PrePostCIT)
+summary(RegChange_CIT.Engage)
+
+RegChange_CIT.Skills <- lm(Post_CITSkills ~ Pre_CITSkills + condition_dummy, PrePostCIT)
+summary(RegChange_CIT.Skills)
+
+RegChange_CIT.Learn <- lm(Post_CITLearn ~ Pre_CITLearn + condition_dummy, PrePostCIT)
+summary(RegChange_CIT.Learn)
+
+RegChange_CIT.Accomplish <- lm(Post_CITAccom ~ Pre_CITAccom + condition_dummy, PrePostCIT)
+summary(RegChange_CIT.Accomplish)
+
+RegChange_CIT.SelfEfficacy <- lm(Post_CITSelfEff ~ Pre_CITSelfEff + condition_dummy, PrePostCIT)
+summary(RegChange_CIT.SelfEfficacy)
+
+RegChange_CIT.SelfWorth <- lm(Post_CITSelfWorth ~ Pre_CITSelfWorth + condition_dummy, PrePostCIT)
+summary(RegChange_CIT.SelfWorth)
+
+RegChange_CIT.Control <- lm(Post_CITControl ~ Pre_CITControl + condition_dummy, PrePostCIT)
+summary(RegChange_CIT.Control)
+
+RegChange_CIT.Meaning <- lm(Post_CITMean ~ Pre_CITMean + condition_dummy, PrePostCIT)
+summary(RegChange_CIT.Meaning)
+
+RegChange_CIT.Optimism <- lm(Post_CITOpt ~ Pre_CITOpt + condition_dummy, PrePostCIT)
+summary(RegChange_CIT.Optimism)
+
+#Moderate - OTE
+RegChange_CIT.SupportOTE <- lm(Post_CITSupport ~ Pre_CITSupport + condition_dummy*Pre_OTE, PrePostCIT)
+summary(RegChange_CIT.SupportOTE)
+
+RegChange_CIT.LonelyOTE <- lm(Post_CITLonely ~ Pre_CITLonely + condition_dummy*Pre_OTE, PrePostCIT)
+summary(RegChange_CIT.LonelyOTE)
+
+RegChange_CIT.BelongOTE <- lm(Post_CITBelong ~ Pre_CITBelong + condition_dummy*Pre_OTE, PrePostCIT)
+summary(RegChange_CIT.BelongOTE)
+
+RegChange_CIT.EngageOTE <- lm(Post_CITEngage ~ Pre_CITEngage + condition_dummy*Pre_OTE, PrePostCIT)
+summary(RegChange_CIT.EngageOTE)
+
+RegChange_CIT.SkillsOTE <- lm(Post_CITSkills ~ Pre_CITSkills + condition_dummy*Pre_OTE, PrePostCIT)
+summary(RegChange_CIT.SkillsOTE)
+
+RegChange_CIT.LearnOTE <- lm(Post_CITLearn ~ Pre_CITLearn + condition_dummy*Pre_OTE, PrePostCIT)
+summary(RegChange_CIT.LearnOTE)
+
+RegChange_CIT.AccomplishOTE <- lm(Post_CITAccom ~ Pre_CITAccom + condition_dummy*Pre_OTE, PrePostCIT)
+summary(RegChange_CIT.AccomplishOTE)
+
+RegChange_CIT.SelfEfficacyOTE <- lm(Post_CITSelfEff ~ Pre_CITSelfEff + condition_dummy*Pre_OTE, PrePostCIT)
+summary(RegChange_CIT.SelfEfficacyOTE)
+
+RegChange_CIT.SelfWorthOTE <- lm(Post_CITSelfWorth ~ Pre_CITSelfWorth + condition_dummy*Pre_OTE, PrePostCIT)
+summary(RegChange_CIT.SelfWorthOTE)
+
+RegChange_CIT.ControlOTE <- lm(Post_CITControl ~ Pre_CITControl + condition_dummy*Pre_OTE, PrePostCIT)
+summary(RegChange_CIT.ControlOTE)
+
+RegChange_CIT.MeaningOTE <- lm(Post_CITMean ~ Pre_CITMean + condition_dummy*Pre_OTE, PrePostCIT)
+summary(RegChange_CIT.MeaningOTE)
+
+RegChange_CIT.OptimismOTE <- lm(Post_CITOpt ~ Pre_CITOpt + condition_dummy*Pre_OTE, PrePostCIT)
+summary(RegChange_CIT.OptimismOTE)
+
+#Moderate - NCS
+RegChange_CIT.SupportNCS <- lm(Post_CITSupport ~ Pre_CITSupport + condition_dummy*Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.SupportNCS)
+
+RegChange_CIT.LonelyNCS <- lm(Post_CITLonely ~ Pre_CITLonely + condition_dummy*Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.LonelyNCS)
+
+RegChange_CIT.BelongNCS <- lm(Post_CITBelong ~ Pre_CITBelong + condition_dummy*Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.BelongNCS)
+
+RegChange_CIT.EngageNCS <- lm(Post_CITEngage ~ Pre_CITEngage + condition_dummy*Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.EngageNCS)
+
+RegChange_CIT.SkillsNCS <- lm(Post_CITSkills ~ Pre_CITSkills + condition_dummy*Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.SkillsNCS)
+
+RegChange_CIT.LearnNCS <- lm(Post_CITLearn ~ Pre_CITLearn + condition_dummy*Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.LearnNCS)
+
+RegChange_CIT.AccomplishNCS <- lm(Post_CITAccom ~ Pre_CITAccom + condition_dummy*Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.AccomplishNCS)
+
+RegChange_CIT.SelfEfficacyNCS <- lm(Post_CITSelfEff ~ Pre_CITSelfEff + condition_dummy*Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.SelfEfficacyNCS)
+
+RegChange_CIT.SelfWorthNCS <- lm(Post_CITSelfWorth ~ Pre_CITSelfWorth + condition_dummy*Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.SelfWorthNCS)
+
+RegChange_CIT.ControlNCS <- lm(Post_CITControl ~ Pre_CITControl + condition_dummy*Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.ControlNCS)
+
+RegChange_CIT.OptimismNCS <- lm(Post_CITOpt ~ Pre_CITOpt + condition_dummy*Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.OptimismNCS)
+```
+
+# Exploratory Hypotheses - Controlling OTE/NCS
+```{r, include=TRUE}
+RegChange_BMPNautoCovary <- lm(Post_BMPNauto ~ Pre_BMPNauto + condition_dummy + Pre_OTE + Pre_NCS, PrePostTotals)
+summary(RegChange_BMPNautoCovary)
+
+RegChange_BMPNcompCovary <- lm(Post_BMPNcomp ~ Pre_BMPNcomp + condition_dummy + Pre_OTE + Pre_NCS, PrePostTotals)
+summary(RegChange_BMPNcompCovary)
+
+RegChange_BMPNrelaCovary <- lm(Post_BMPNrelate ~ Pre_BMPNrelate + condition_dummy + Pre_OTE + Pre_NCS, PrePostTotals)
+summary(RegChange_BMPNrelaCovary)
+
+RegChange_CIT.SelfWorthCovary <- lm(Post_CITSelfWorth ~ Pre_CITSelfWorth + condition_dummy + Pre_OTE + Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.SelfWorthCovary)
+
+RegChange_CIT.SelfEffCovary <- lm(Post_CITSelfEff ~ Pre_CITSelfEff + condition_dummy + Pre_OTE + Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.SelfEffCovary)
+
+RegChange_CIT.MeaningCovary <- lm(Post_CITMean ~ Pre_CITMean + condition_dummy + Pre_OTE + Pre_NCS, PrePostCIT)
+summary(RegChange_CIT.MeaningCovary)
+```
+
+# Calc Effect Size
+```{r, include=TRUE}
+PrePostTotals.Curiosity <- PrePostTotals %>% filter(PrePostTotals$Condition == "curiosity")
+PrePostTotals.Curiosity <- PrePostTotals.Curiosity %>% filter(!is.na(PrePostTotals.Curiosity$Post_PA))
+PrePostTotals.Curiosity <- PrePostTotals.Curiosity %>% filter(!is.na(PrePostTotals.Curiosity$Post_BMPNauto))
+
+CurPAttest <- t.test(PrePostTotals.Curiosity$Post_PA, PrePostTotals.Curiosity$Pre_PA, paired=T)
+cohens_d(CurPAttest)
+
+CurNAttest <- t.test(PrePostTotals.Curiosity$Post_NA, PrePostTotals.Curiosity$Pre_NA, paired=T)
+cohens_d(CurNAttest)
+
+CurAutottest <- t.test(PrePostTotals.Curiosity$Post_BMPNauto, PrePostTotals.Curiosity$Pre_BMPNauto, paired=T)
+cohens_d(CurAutottest)
+
+CurCompttest <- t.test(PrePostTotals.Curiosity$Post_BMPNcomp, PrePostTotals.Curiosity$Pre_BMPNcomp, paired=T)
+CurCompttest
+cohens_d(CurCompttest)
+
+PrePostCIT.Curiosity <- PrePostCIT %>% filter(PrePostCIT$Condition == "curiosity")
+PrePostCIT.Curiosity <- PrePostCIT.Curiosity %>% filter(!is.na(PrePostCIT.Curiosity$Post_CITSelfWorth))
+
+CurSWttest <- t.test(PrePostCIT.Curiosity$Post_CITSelfWorth, PrePostCIT.Curiosity$Pre_CITSelfWorth, paired=T)
+CurSWttest
+cohens_d(CurSWttest)
+
+PrePostTotals.Control <- PrePostTotals %>% filter(PrePostTotals$Condition == "control")
+PrePostTotals.Control <- PrePostTotals.Control %>% filter(!is.na(PrePostTotals.Control$Post_NA))
+
+ConNAttest <- t.test(PrePostTotals.Control$Post_NA, PrePostTotals.Control$Pre_NA, paired=T)
+cohens_d(ConNAttest)
+
+ConPAttest <- t.test(PrePostTotals.Control$Post_PA, PrePostTotals.Control$Pre_PA, paired=T)
+cohens_d(ConPAttest)
+
+ConAutottest <- t.test(PrePostTotals.Control$Post_BMPNauto, PrePostTotals.Control$Pre_BMPNauto, paired=T)
+ConAutottest
+
+PrePostCIT.Control <- PrePostCIT %>% filter(PrePostCIT$Condition == "control")
+PrePostCIT.Control <- PrePostCIT.Control %>% filter(!is.na(PrePostCIT.Control$Post_CITSelfWorth))
+
+ConSWttest <- t.test(PrePostCIT.Control$Post_CITSelfWorth, PrePostCIT.Control$Pre_CITSelfWorth, paired=T)
+ConSWttest
+cohens_d(ConSWttest)
+
+#Weekly Negative Affect estimate comparing difference scores
+PrePostTotals <- PrePostTotals %>% mutate(Diff_NA = Post_NA - Pre_NA) 
+NADiffttest <- t.test(Diff_NA ~ Condition, PrePostTotals, var.equal = T)
+NADiffttest
+t_to_d(t = NADiffttest$statistic, NADiffttest$parameter)
+```
+
+# Graphics of Regressed Changes
+```{r, include=TRUE}
+day0_Totals2 <- subset(day0data, select= c(Participant.ID, Condition, Pre_SWLS, Pre_PA, Pre_NA, Pre_CEI, Pre_BMPNauto, Pre_BMPNcomp))
+day0_Totals2$day <- 0
+
+#Rename Day 0 Data
+names(day0_Totals2)[names(day0_Totals2) == "Pre_SWLS"] <- "SWLS"
+names(day0_Totals2)[names(day0_Totals2) == "Pre_PA"] <- "PA"
+names(day0_Totals2)[names(day0_Totals2) == "Pre_NA"] <- "NA"
+names(day0_Totals2)[names(day0_Totals2) == "Pre_CEI"] <- "CEI"
+names(day0_Totals2)[names(day0_Totals2) == "Pre_BMPNauto"] <- "BMPNauto"
+names(day0_Totals2)[names(day0_Totals2) == "Pre_BMPNcomp"] <- "BMPNcomp"
+
+day8_Totals2 <- subset(day8data, select= c(Participant.ID, Condition, Post_SWLS, Post_PA, Post_NA, Post_CEI, Post_BMPNauto, Post_BMPNcomp))
+day8_Totals2$day <- 8
+
+#Rename Day 8 Data
+names(day8_Totals2)[names(day8_Totals2) == "Post_SWLS"] <- "SWLS"
+names(day8_Totals2)[names(day8_Totals2) == "Post_PA"] <- "PA"
+names(day8_Totals2)[names(day8_Totals2) == "Post_NA"] <- "NA"
+names(day8_Totals2)[names(day8_Totals2) == "Post_CEI"] <- "CEI"
+names(day8_Totals2)[names(day8_Totals2) == "Post_BMPNauto"] <- "BMPNauto"
+names(day8_Totals2)[names(day8_Totals2) == "Post_BMPNcomp"] <- "BMPNcomp"
+
+PrePostTotals2 <- merge(day0_Totals2, day8_Totals2, by = "Participant.ID")
+#write.csv(PrePostTotals2, "PrePostTotals2.csv", row.names=FALSE)
+PrePostTotals2_long <- read.csv("PrePostTotals2.csv") 
+
+# Plot of Weekly PA
+ggplot(PrePostTotals2_long, aes(x = as.factor(Condition), y = PA, group = day, fill = Condition)) +
+  geom_bar(position=position_dodge(width = .91), stat='summary', fun='mean') + 
+  labs(title = "Title",
+       x = "Day",
+       y = "Weekly Positive Affect") +
+  scale_y_continuous(limits=c(NA,7)) 
+  
+
+# Plot of Weekly NA
+ggplot(PrePostTotals2_long, aes(x = as.factor(day), y = NA., group = Condition, fill = Condition)) +
+  geom_bar(position=position_dodge(width = .91), stat='summary', fun='mean') + 
+  labs(title = "Title",
+       x = "Day",
+       y = "Weekly Negative Affect") +
+  scale_y_continuous(limits=c(0,7))
+  #geom_signif(comparisons = list(c("versicolor", "virginica")), map_signif_level=TRUE)
+```
+
+# Day 8 Social & Novelty Moderators
+```{r, include=TRUE}
+#Percent Behaviors Social
+RegChange_SWLSSocial <- lm(Post_SWLS ~ Pre_SWLS + condition_dummy*Daily_social_percent, FullTotals)
+summary(RegChange_SWLSSocial)
+
+RegChange_PASocial <- lm(Post_PA ~ Pre_PA + condition_dummy*Daily_social_percent, FullTotals)
+summary(RegChange_PASocial)
+
+RegChange_NASocial <- lm(Post_NA ~ Pre_NA + condition_dummy*Daily_social_percent, FullTotals)
+summary(RegChange_NASocial)
+
+RegChange_CEISocial <- lm(Post_CEI ~ Pre_CEI + condition_dummy*Daily_social_percent, FullTotals)
+summary(RegChange_CEISocial)
+
+RegChange_BMPNautoSocial <- lm(Post_BMPNauto ~ Pre_BMPNauto + condition_dummy*Daily_social_percent, FullTotals)
+summary(RegChange_BMPNautoSocial)
+
+RegChange_BMPNcompSocial <- lm(Post_BMPNcomp ~ Pre_BMPNcomp + condition_dummy*Daily_social_percent, FullTotals)
+summary(RegChange_BMPNcompSocial)
+
+RegChange_BMPNrelaSocial <- lm(Post_BMPNrelate ~ Pre_BMPNrelate + condition_dummy*Daily_social_percent, FullTotals)
+summary(RegChange_BMPNrelaSocial)
+
+RegChange_CIT.SelfWorthSocial <- lm(Post_CITSelfWorth ~ Pre_CITSelfWorth + condition_dummy*Daily_social_percent, PrePostCIT)
+summary(RegChange_CIT.SelfWorthSocial)
+
+RegChange_CIT.SelfEffSocial <- lm(Post_CITSelfEff ~ Pre_CITSelfEff + condition_dummy*Daily_social_percent, PrePostCIT)
+summary(RegChange_CIT.SelfEffSocial)
+
+RegChange_CIT.MeaningSocial <- lm(Post_CITMean ~ Pre_CITMean + condition_dummy*Daily_social_percent, PrePostCIT)
+summary(RegChange_CIT.MeaningSocial)
+
+#Percent Behaviors Novel
+RegChange_SWLSNovel <- lm(Post_SWLS ~ Pre_SWLS + condition_dummy*Daily_novelty_percent, FullTotals)
+summary(RegChange_SWLSNovel)
+
+RegChange_PANovel <- lm(Post_PA ~ Pre_PA + condition_dummy*Daily_novelty_percent, FullTotals)
+summary(RegChange_PANovel)
+
+RegChange_NANovel <- lm(Post_NA ~ Pre_NA + condition_dummy*Daily_novelty_percent, FullTotals)
+summary(RegChange_NANovel)
+
+RegChange_CEINovel <- lm(Post_CEI ~ Pre_CEI + condition_dummy*Daily_novelty_percent, FullTotals)
+summary(RegChange_CEINovel)
+
+RegChange_BMPNautoNovel <- lm(Post_BMPNauto ~ Pre_BMPNauto + condition_dummy*Daily_novelty_percent, FullTotals)
+summary(RegChange_BMPNautoNovel)
+
+RegChange_BMPNcompNovel <- lm(Post_BMPNcomp ~ Pre_BMPNcomp + condition_dummy*Daily_novelty_percent, FullTotals)
+summary(RegChange_BMPNcompNovel)
+
+RegChange_BMPNrelaNovel <- lm(Post_BMPNrelate ~ Pre_BMPNrelate + condition_dummy*Daily_novelty_percent, FullTotals)
+summary(RegChange_BMPNrelaNovel)
+
+RegChange_CIT.SelfWorthNovel <- lm(Post_CITSelfWorth ~ Pre_CITSelfWorth + condition_dummy*Daily_novelty_percent, PrePostCIT)
+summary(RegChange_CIT.SelfWorthNovel)
+
+RegChange_CIT.SelfEffNovel <- lm(Post_CITSelfEff ~ Pre_CITSelfEff + condition_dummy*Daily_novelty_percent, PrePostCIT)
+summary(RegChange_CIT.SelfEffNovel)
+
+RegChange_CIT.MeaningNovel <- lm(Post_CITMean ~ Pre_CITMean + condition_dummy*Daily_novelty_percent, PrePostCIT)
+summary(RegChange_CIT.MeaningNovel)
+```
+
+#Day 8 Social & Novel Moderation Graphics
+```{r, include=TRUE}
+Moderationlong <- FullTotals %>% select(c("Participant.ID", "Pre_BMPNauto", "Post_BMPNauto", "Pre_BMPNcomp", "Post_BMPNcomp", "Pre_BMPNrelate", "Post_BMPNrelate", "Condition", "condition_dummy", "Daily_social_percent", "Daily_novelty_percent")) 
+Moderationlong <- pivot_longer(Moderationlong, c("Pre_BMPNauto", "Post_BMPNauto")) 
+Moderationlong <- mutate(Moderationlong, )
+
+Moderationlong <- pivot_longer(Moderationlong, c("Pre_BMPNcomp", "Post_BMPNcomp"))
+
+#"Pre_BMPNcomp", "Post_BMPNcomp", "Pre_BMPNrelate", "Post_BMPNrelate"
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_PA, group = interaction(Condition, latinx_dummy), color = latinx_dummy, shape = Condition)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Average Daily PA by Condition and Latinx vs. Not",
+       x = "Intervention Day",
+       y = "Daily PA") +
+       scale_y_continuous(limits=c(1,7))
+
+```

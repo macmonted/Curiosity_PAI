@@ -1,0 +1,790 @@
+---
+title: "Daily Analysis"
+author: "Madison Montemayor-Dominguez"
+date: "2025-07-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(lmerTest)
+library(sjstats)
+library(psych)
+library(ggplot2)
+library(dplyr)
+library(naniar)
+library(Matrix)
+library(effectsize)
+library(tidyverse)
+
+citation()
+version$version.string
+```
+
+#Read in Data
+
+```{r, include=TRUE}
+FullTotals <- readRDS("fulltotals.rds")
+
+PrePostTotals <- readRDS("preposttotals.rds")
+
+Week_Totals <- readRDS("weektotals.rds")
+```
+
+# SWB - Positive Affect
+
+```{r, include=TRUE}
+hist(FullTotals$Daily_PA)
+
+jpeg(file="PADaily.jpeg")
+ggplot(FullTotals, aes(x = CheckinDay, y = Daily_PA, group = Condition, shape = Condition)) + 
+    geom_point(stat = 'summary', fun = 'mean', size = 2) + 
+    geom_line(stat = 'summary', fun = 'mean') + 
+    labs(#title = "Average Daily Positive Affect by Condition",
+       x = "Intervention Day",
+       y = "Positive Affect") +
+   theme_classic() +
+   theme(axis.title=element_text(size=14)) +
+   scale_y_continuous(limits=c(1,7))
+dev.off()
+
+PAavg <- FullTotals %>% group_by(across(c(Condition, CheckinDay))) %>% 
+                       summarise(avg_dailyPA = mean(Daily_PA, na.rm = T),
+                                 sd_dailyPA = sd(Daily_PA, na.rm = T),
+                                 count = n(),
+                                 se = sd_dailyPA / sqrt(count),
+                                 CI = (qt(.95, count - 1))*se)
+  
+PAavg
+
+NAavg <- FullTotals %>% group_by(across(c(Condition, CheckinDay))) %>% 
+                       summarise(avg_dailyNA = mean(Daily_NA, na.rm = T),
+                                 sd_dailyNA = sd(Daily_NA, na.rm = T),
+                                 count = n(),
+                                 se = sd_dailyNA / sqrt(count),
+                                 CI = (qt(.95, count - 1))*se)
+  
+NAavg
+
+##graphing linear relationship btwn time and positive affect
+ggplot(FullTotals, aes(x = CheckinDay, y = Daily_PA, color = Condition)) + 
+    geom_smooth(method = "lm") +
+    #geom_jitter() + #vs. geom_point()
+    labs(title = "Linear Regression of Positive Affect across the Intervention by Condition",
+       x = "Day",
+       y = "Positive Affect") +
+   scale_y_continuous(limits=c(1,7)) 
+   #scale_x_continuous(limits=c(1,7))
+
+##REML= False means we'll be using the full maximum likelihood estimation
+
+#L2 unconditional, L1 fixed slope model
+uncondpa <- lmer(Daily_PA ~ 1  + CheckinDay_new + (1| Participant.ID), data=FullTotals, REML = FALSE)
+summary(uncondpa)
+performance::icc(uncondpa) ##proportion of variance between participants (level 2)
+
+#L2 unconditional, L1 vary slope model
+uncondvaryslopepa <- lmer(Daily_PA ~ 1  + CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(uncondvaryslopepa)
+performance::icc(uncondvaryslopepa) ##proportion of variance between participants (level 2)
+
+anova(uncondpa, uncondvaryslopepa) #callout: model fit improved significantly w/ random slopes
+
+#L2 Condition, L1 fixed slope model
+fixedslopepa <- lmer(Daily_PA ~ 1  + condition_dummy + (1| Participant.ID), data=FullTotals, REML = FALSE)
+summary(fixedslopepa)
+performance::icc(fixedslopepa) ##proportion of variance between participants (level 2)
+
+#L2 Condition, L1 vary slope model
+varyslopepa <- lmer(Daily_PA ~ 1  + condition_dummy + (1 + CheckinDay_new | Participant.ID), data=FullTotals, REML = FALSE)
+summary(varyslopepa)
+performance::icc(varyslopepa) ##proportion of variance between participants (level 2)
+
+anova(fixedslopepa, varyslopepa) #callout: although vary slope model fails to converge, model fit is improved
+
+#L2 Condition, L1 vary slope model & intervention day
+conditionvaryslopepa <- lmer(Daily_PA ~ 1  + condition_dummy*CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionvaryslopepa)
+performance::icc(conditionvaryslopepa) ##proportion of variance between participants (level 2)
+
+anova(varyslopepa, conditionvaryslopepa) #callout: model fit is improved
+```
+
+# SWB - Negative Affect
+
+```{r, include=TRUE}
+hist(FullTotals$Daily_NA)
+
+jpeg(file="NADaily.jpeg")
+ggplot(FullTotals, aes(x = CheckinDay, y = Daily_NA, group = Condition, shape = Condition)) + 
+    geom_point(stat = 'summary', fun = 'mean', size = 2) + 
+    geom_line(stat = 'summary', fun = 'mean') + 
+    labs(#title = "Average Daily Negative Affect by Condition",
+       x = "Intervention Day",
+       y = "Negative Affect") +
+   theme_classic() +
+   theme(axis.title=element_text(size=14)) +
+   scale_y_continuous(limits=c(1,7))
+dev.off()
+
+##graphing linear relationship btwn time and negative affect
+ggplot(FullTotals, aes(x = CheckinDay, y = Daily_NA, color = Condition)) + 
+    geom_smooth(method = "lm") +
+    #geom_jitter() + #vs. geom_point()
+    labs(title = "Linear Regression of Negative Affect across the Intervention by Condition",
+       x = "Day",
+       y = "Negative Affect") +
+   scale_y_continuous(limits=c(1,7))
+
+#L2 unconditional, L1 fixed slope model
+uncondna <- lmer(Daily_NA ~ 1  + CheckinDay_new + (1| Participant.ID), data=FullTotals, REML = FALSE)
+summary(uncondna)
+performance::icc(uncondna) ##proportion of variance between participants (level 2)
+
+#L2 unconditional, L1 vary slope model
+uncondvaryslopena <- lmer(Daily_NA ~ 1  + CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(uncondvaryslopena)
+performance::icc(uncondvaryslopena) ##proportion of variance between participants (level 2)
+
+anova(uncondna, uncondvaryslopena) #callout: model fit improved significantly w/ random slopes
+
+#L2 Condition, L1 fixed slope model
+fixedslopeNA <- lmer(Daily_NA ~ 1  + condition_dummy + (1| Participant.ID), data=FullTotals, REML = FALSE)
+summary(fixedslopeNA)
+performance::icc(fixedslopeNA) ##proportion of variance between participants (level 2)
+
+#L2 Condition, L1 vary slope model
+varyslopeNA <- lmer(Daily_NA ~ 1  + condition_dummy + (1 + CheckinDay_new | Participant.ID), data=FullTotals, REML = FALSE)
+summary(varyslopeNA)
+performance::icc(varyslopeNA) ##proportion of variance between participants (level 2)
+
+anova(fixedslopeNA, varyslopeNA) #callout: while the vary slope model failed to converge, fit was improved
+
+#L2 Condition, L1 fixed slope model & intervention day
+conditionfixedslopeNA <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new + (1| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionfixedslopeNA)
+performance::icc(conditionfixedslopeNA) ##proportion of variance between participants (level 2)
+
+#L2 condition, L1 vary slope model & intervention day
+conditionvaryslopeNA <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionvaryslopeNA)
+performance::icc(conditionvaryslopeNA) ##proportion of variance between participants (level 2)
+isSingular(conditionvaryslopeNA)
+
+anova(varyslopeNA, conditionvaryslopeNA) #callout: model fit was improved
+
+#L2 condition, L1 vary slope model & intervention day (ML not FIML based on convergence issues)
+MLconditionvaryslopeNA <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = TRUE)
+summary(MLconditionvaryslopeNA)
+performance::icc(MLconditionvaryslopeNA) ##proportion of variance between participants (level 2)
+```
+
+# Curiosity
+
+```{r, include=TRUE}
+hist(FullTotals$Pre_CEI)
+hist(FullTotals$Post_CEI)
+
+jpeg(file="CuriosityDaily.jpeg")
+ggplot(FullTotals, aes(x = CheckinDay, y = Daily_curiosity, group = Condition, shape = Condition)) + 
+    geom_point(stat = 'summary', fun = 'mean', size = 2) + 
+    geom_line(stat = 'summary', fun = 'mean') + 
+    labs(#title = "Average Daily Curiosity by Condition",
+       x = "Intervention Day",
+       y = "Curiosity Rating") +
+    theme_classic() +
+    theme(axis.title=element_text(size=14)) +
+   scale_y_continuous(limits=c(1,5))
+dev.off()
+
+CURavg <- FullTotals %>% group_by(across(c(Condition, CheckinDay))) %>% 
+                       summarise(avg_dailyCUR = mean(Daily_curiosity, na.rm = T),
+                                 sd_dailyCUR = sd(Daily_curiosity, na.rm = T),
+                                 count = n(),
+                                 se = sd_dailyCUR / sqrt(count),
+                                 CI = (qt(.95, count - 1))*se)
+
+CURavg
+
+##graphing linear relationship btwn time and daily curiosity
+ggplot(FullTotals, aes(x = CheckinDay, y = Daily_curiosity, color = Condition)) + 
+    geom_smooth(method = "lm") +
+    #geom_point() + 
+    labs(title = "Linear Regression of Curiosity across the Intervention by Condition",
+       x = "Day",
+       y = "Daily Curiosity") +
+   scale_y_continuous(limits=c(1,5))
+
+#L2 unconditional, L1 fixed slope model
+uncondcur <- lmer(Daily_curiosity ~ 1  + CheckinDay_new + (1| Participant.ID), data=FullTotals, REML = FALSE)
+summary(uncondcur)
+performance::icc(uncondcur) ##proportion of variance between participants (level 2)
+
+#L2 unconditional, L1 vary slope model
+uncondvaryslopecur <- lmer(Daily_curiosity ~ 1  + CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(uncondvaryslopecur)
+performance::icc(uncondvaryslopecur) ##proportion of variance between participants (level 2)
+
+anova(uncondcur, uncondvaryslopecur) #callout: model fit improved significantly w/ random slopes
+
+#L2 Condition, L1 fixed slope model
+fixedslopecur <- lmer(Daily_curiosity ~ 1  + condition_dummy + (1| Participant.ID), data=FullTotals, REML = FALSE)
+summary(fixedslopecur)
+performance::icc(fixedslopecur) ##proportion of variance between participants (level 2)
+
+#L2 Condition, L1 vary slope model
+varyslopecur <- lmer(Daily_curiosity ~ 1  + condition_dummy + (1 + CheckinDay_new | Participant.ID), data=FullTotals, REML = FALSE)
+summary(varyslopecur)
+performance::icc(varyslopecur) ##proportion of variance between participants (level 2)
+
+anova(fixedslopecur, varyslopecur) #callout: while the vary slope model failed to converge, fit was improved
+
+#L2 condition, L1 fixed slope model & intervention day
+conditionfixedslopecur <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new + (1| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionfixedslopecur)
+performance::icc(conditionfixedslopecur) ##proportion of variance between participants (level 2)
+
+#L2 condition, L1 vary slope model & intervention day
+conditionvaryslopecur <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionvaryslopecur)
+performance::icc(conditionvaryslopecur) ##proportion of variance between participants (level 2)
+
+anova(varyslopecur, conditionvaryslopecur)
+
+#Checking Routine Curiosity Slope
+FullTotals_Control <- FullTotals %>% filter(FullTotals$condition_dummy == 0)
+varyslopecontrol <- lmer(Daily_curiosity ~ 1  + CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals_Control, REML = FALSE)
+summary(varyslopecontrol)
+```
+
+# Removing Duplicates
+
+```{r, include=TRUE}
+#Filterday Day Duplicates
+FullTotals_FilterDay <- FullTotals %>% filter(FullTotals$DailyCheckInDuplicateOrder <= 1)
+
+#L2 condition, L1 vary slope model & intervention day
+PAmodel_DayFilter <- lmer(Daily_PA ~ 1  + condition_dummy*CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals_FilterDay, REML = FALSE)
+summary(PAmodel_DayFilter)
+performance::icc(PAmodel_DayFilter) ##proportion of variance between participants (level 2)
+
+#L2 condition, L1 vary slope model & intervention day
+NAmodel_DayFilter <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new  + (1 + CheckinDay_new| Participant.ID), data=FullTotals_FilterDay, REML = FALSE)
+summary(NAmodel_DayFilter)
+performance::icc(NAmodel_DayFilter) ##proportion of variance between participants (level 2)
+
+#L2 condition, L1 vary slope model & intervention day (Using ML not FIML to prevent singular)
+MLCurmodel_DayFilter <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new  + (1 + CheckinDay_new| Participant.ID), data=FullTotals_FilterDay, REML = TRUE)
+summary(MLCurmodel_DayFilter)
+isSingular(MLCurmodel_DayFilter) #Singular when use FIML
+performance::icc(MLCurmodel_DayFilter) ##proportion of variance between participants (level 2)
+
+
+#Filterday Date Duplicates
+FullTotals_FilterDate <- FullTotals %>% filter(FullTotals$DuplicateDateOrder <= 1)
+
+#L2 condition, L1 vary slope model & intervention day
+PAmodel_DateFilter <- lmer(Daily_PA ~ 1  + condition_dummy*CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals_FilterDate, REML = FALSE)
+summary(PAmodel_DateFilter)
+performance::icc(PAmodel_DateFilter) ##proportion of variance between participants (level 2)
+
+#L2 condition, L1 vary slope model & intervention day
+NAmodel_DateFilter <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new  + (1 + CheckinDay_new| Participant.ID), data=FullTotals_FilterDate, REML = FALSE)
+summary(NAmodel_DateFilter)
+performance::icc(NAmodel_DateFilter) ##proportion of variance between participants (level 2)
+
+#L2 condition, L1 vary slope model & intervention day
+Curmodel_DateFilter <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new  + (1 + CheckinDay_new| Participant.ID), data=FullTotals_FilterDate, REML = FALSE)
+summary(Curmodel_DateFilter)
+performance::icc(Curmodel_DateFilter) ##proportion of variance between participants (level 2)
+
+#Using Recoded Days
+FullTotals_RecodedDays <- FullTotals %>% filter(FullTotals$Recoded.Day != 0)
+FullTotals_RecodedDays$Recoded.Day_new <- FullTotals_RecodedDays$Recoded.Day - 1
+hist(FullTotals_RecodedDays$CheckinDay)
+describe(FullTotals_RecodedDays)
+
+
+#L2 condition, L1 vary slope model & intervention day (removed duplicates)
+PAmodel_recode <- lmer(Daily_PA ~ 1  + condition_dummy*Recoded.Day_new + (1 + Recoded.Day_new| Participant.ID), data=FullTotals_RecodedDays, REML = FALSE)
+summary(PAmodel_recode)
+performance::icc(PAmodel_recode) ##proportion of variance between participants (level 2)
+
+#L2 condition, L1 vary slope model & intervention day (removed duplicates)
+NAmodel_recode <- lmer(Daily_NA ~ 1  + condition_dummy*Recoded.Day_new  + (1 + Recoded.Day_new| Participant.ID), data=FullTotals_RecodedDays, REML = FALSE)
+summary(NAmodel_recode)
+performance::icc(NAmodel_recode) ##proportion of variance between participants (level 2)
+
+#L2 condition, L1 vary slope model & intervention day (removed duplicates)
+Curmodel_recode <- lmer(Daily_curiosity ~ 1  + condition_dummy*Recoded.Day_new  + (1 + Recoded.Day_new| Participant.ID), data=FullTotals_RecodedDays, REML = FALSE)
+summary(Curmodel_recode)
+performance::icc(Curmodel_recode) ##proportion of variance between participants (level 2)
+
+```
+
+# Estimates with NCS
+
+```{r, include=TRUE}
+#L2 condition & NCS, L1 vary slope model & intervention day
+conditionvaryslopepaNCS <- lmer(Daily_PA ~ 1  + condition_dummy*CheckinDay_new + Pre_NCS*CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionvaryslopepaNCS)
+performance::icc(conditionvaryslopepaNCS) ##proportion of variance between participants (level 2)
+
+conditionvaryslopepaNCSmod <- lmer(Daily_PA ~ 1  + condition_dummy*CheckinDay_new*Pre_NCS + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE) #moderated by NCS
+summary(conditionvaryslopepaNCSmod)
+performance::icc(conditionvaryslopepaNCSmod) ##proportion of variance between participants (level 2)
+
+
+#L2 condition & NCS, L1 vary slope model & intervention day (ML not FIML based on convergence issues)
+conditionvaryslopeNANCS <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new  + Pre_NCS*CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionvaryslopeNANCS)
+performance::icc(conditionvaryslopeNANCS) ##proportion of variance between participants (level 2)
+
+conditionvaryslopeNANCSmod <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new*Pre_NCS + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE) #moderated by NCS
+summary(conditionvaryslopeNANCSmod)
+performance::icc(conditionvaryslopeNANCSmod) ##proportion of variance between participants (level 2)
+
+#L2 condition & NCS, L1 vary slope model & intervention day
+conditionvaryslopecurNCS <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new  + Pre_NCS*CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionvaryslopecurNCS)
+performance::icc(conditionvaryslopecurNCS) ##proportion of variance between participants (level 2)
+
+conditionvaryslopecurNCSmod <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new*Pre_NCS + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = TRUE) #moderated by NCS; REML so model converges
+summary(conditionvaryslopecurNCSmod)
+performance::icc(conditionvaryslopecurNCSmod) ##proportion of variance between participants (level 2)
+
+```
+
+# Estimates with OTE
+
+```{r, include=TRUE}
+#L2 condition & OTE, L1 vary slope model & intervention day
+conditionvaryslopepaOTE <- lmer(Daily_PA ~ 1  + condition_dummy*CheckinDay_new  + Pre_OTE*CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionvaryslopepaOTE)
+performance::icc(conditionvaryslopepaOTE) ##proportion of variance between participants (level 2)
+
+conditionvaryslopepaOTEmod <- lmer(Daily_PA ~ 1  + condition_dummy*CheckinDay_new*Pre_OTE + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE) #moderated with OTE
+summary(conditionvaryslopepaOTEmod)
+performance::icc(conditionvaryslopepaOTEmod) ##proportion of variance between participants (level 2)
+
+#L2 condition & OTE, L1 vary slope model & intervention day (ML not FIML based on convergence issues)
+conditionvaryslopeNAOTE <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new  + Pre_OTE*CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionvaryslopeNAOTE)
+performance::icc(conditionvaryslopeNAOTE) ##proportion of variance between participants (level 2)
+
+conditionvaryslopeNAOTEmod <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new*Pre_OTE + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionvaryslopeNAOTEmod)
+performance::icc(conditionvaryslopeNAOTEmod) ##proportion of variance between participants (level 2)
+
+#L2 condition & OTE, L1 vary slope model & intervention day
+conditionvaryslopecurOTE <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new  + Pre_OTE*CheckinDay_new + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionvaryslopecurOTE)
+performance::icc(conditionvaryslopecurOTE) ##proportion of variance between participants (level 2)
+
+conditionvaryslopecurOTEmod <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new*Pre_OTE + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionvaryslopecurOTEmod)
+performance::icc(conditionvaryslopecurOTEmod) ##proportion of variance between participants (level 2)
+
+```
+
+
+# Daily PA Moderators
+
+```{r, include=TRUE}
+#Social
+#L2 Condition, L1 vary slope model & social
+conditionXsocial <- lmer(Daily_PA ~ 1  + condition_dummy*CheckinDay_new*overall_social + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionXsocial)
+class(conditionXsocial)
+performance::icc(conditionXsocial) ##proportion of variance between participants (level 2)
+emmeans::emmeans(conditionXsocial, pairwise ~ condition_dummy * overall_social)
+
+trends <- emmeans::emtrends(conditionXsocial, var = "CheckinDay_new", specs = c("condition_dummy", "overall_social"))
+emmeans::contrast(trends, method = "pairwise")
+
+
+FullTotals_Curiosity <- FullTotals %>% filter(FullTotals$condition_dummy == 1)
+ggplot(FullTotals_Curiosity, 
+       aes(x = CheckinDay, y = Daily_PA, group = overall_social, color = overall_social)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Curiosity Condition Average Daily Positive Affect When Social",
+       x = "Intervention Day",
+       y = "Positive Affect") +
+       scale_y_continuous(limits=c(1,7))
+
+ggplot(FullTotals_Curiosity, 
+       aes(x = CheckinDay, y = Daily_PA, group = overall_social, color = overall_social)) + 
+       geom_smooth(method = "lm") +
+       labs(title = "Linear Regression of Curiosity Condition Positive Affect When Social",
+       x = "Day",
+       y = "Positive Affect") +
+      scale_y_continuous(limits=c(1,7)) 
+
+FullTotals_Control <- FullTotals %>% filter(FullTotals$condition_dummy == 0)
+ggplot(FullTotals_Control, 
+       aes(x = CheckinDay, y = Daily_PA, group = overall_social, color = overall_social)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Control Condition Average Daily Positive Affect When Social",
+       x = "Intervention Day",
+       y = "Positive Affect") +
+       scale_y_continuous(limits=c(1,7))
+
+ggplot(FullTotals_Control, 
+       aes(x = CheckinDay, y = Daily_PA, group = overall_social, color = overall_social)) + 
+       geom_smooth(method = "lm") +
+       labs(title = "Linear Regression of Control Condition Positive Affect When Social",
+       x = "Day",
+       y = "Positive Affect") +
+      scale_y_continuous(limits=c(1,7)) 
+
+#L2 Condition, L1 vary slope model & social (Examining Interaction by breaking out condition)
+curiosityXsocial_cur <- lmer(Daily_PA ~ 1  + CheckinDay_new*overall_social + (1 + CheckinDay_new| Participant.ID), data=FullTotals_Curiosity, REML = FALSE)
+summary(curiosityXsocial_cur)
+
+#Dummy codes
+curiosityXsocial_dummy <- lmer(Daily_PA ~ 1  + controlgroup_social*CheckinDay_new 
+                                             + curiositygroup_NOsocial*CheckinDay_new 
+                                             + curiositygroup_social*CheckinDay_new 
+                                             + (1  + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(curiosityXsocial_dummy)
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_PA, group = overall_social_name, color = overall_social_name)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Average Daily Positive Affect When Social by Condition",
+       x = "Intervention Day",
+       y = "Positive Affect") +
+       scale_y_continuous(limits=c(1,7))
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_PA, group = overall_social_name, color = overall_social_name)) + 
+       geom_smooth(method = "lm") +
+       labs(title = "Linear Regression of Positive Affect By Condition When Social",
+       x = "Day",
+       y = "Positive Affect") +
+      scale_y_continuous(limits=c(1,7)) 
+
+#Novelty
+#L2 Condition, L1 vary slope model & novelty
+conditionXnovelty <- lmer(Daily_PA ~ 1  + condition_dummy*CheckinDay_new*overall_novelty + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = TRUE)
+summary(conditionXnovelty)
+performance::icc(conditionXnovelty) ##proportion of variance between participants (level 2)
+
+ggplot(FullTotals_Curiosity, 
+       aes(x = CheckinDay, y = Daily_PA, group = overall_novelty, color = overall_novelty)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Curiosity Condition Average Daily Positive Affect When Novel Behavior",
+       x = "Intervention Day",
+       y = "Positive Affect") +
+       scale_y_continuous(limits=c(1,7))
+
+ggplot(FullTotals_Curiosity, 
+       aes(x = CheckinDay, y = Daily_PA, group = overall_novelty, color = overall_novelty)) + 
+       geom_smooth(method = "lm") +
+       labs(title = "Linear Regression of Curiosity Condition Positive Affect When Novel Behavior",
+       x = "Day",
+       y = "Positive Affect") +
+      scale_y_continuous(limits=c(1,7)) 
+
+ggplot(FullTotals_Control, 
+       aes(x = CheckinDay, y = Daily_PA, group = overall_novelty, color = overall_novelty)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Control Condition Average Daily Positive Affect When Novel Behavior",
+       x = "Intervention Day",
+       y = "Positive Affect") +
+       scale_y_continuous(limits=c(1,7))
+
+ggplot(FullTotals_Control, 
+       aes(x = CheckinDay, y = Daily_PA, group = overall_novelty, color = overall_novelty)) + 
+       geom_smooth(method = "lm") +
+       labs(title = "Linear Regression of Control Condition Positive Affect When Novel Behavior",
+       x = "Day",
+       y = "Positive Affect") +
+      scale_y_continuous(limits=c(1,7)) 
+
+#L2 Condition, L1 vary slope model & social (Examining Interaction by breaking out condition)
+curiosityXnovel_cur <- lmer(Daily_PA ~ 1  + CheckinDay_new*overall_novelty + (1 + CheckinDay_new| Participant.ID), data=FullTotals_Curiosity, REML = FALSE)
+summary(curiosityXnovel_cur)
+
+curiosityXnovel_con <- lmer(Daily_PA ~ 1  + CheckinDay_new*overall_novelty + (1 + CheckinDay_new| Participant.ID), data=FullTotals_Control, REML = FALSE)
+summary(curiosityXnovel_con)
+
+#Dummy codes
+curiosityXnovel_dummy <- lmer(Daily_PA ~ 1   + controlgroup_novelty
+                                             + curiositygroup_NOnovelty
+                                             + curiositygroup_novelty
+                                             + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = F)
+summary(curiosityXnovel_dummy)
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_PA, group = overall_novelty_name, color = overall_novelty_name)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Average Daily Positive Affect When Novel by Condition",
+       x = "Intervention Day",
+       y = "Positive Affect") +
+       scale_y_continuous(limits=c(1,7))
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_PA, group = overall_social_name, color = overall_social_name)) + 
+       geom_smooth(method = "lm") +
+       labs(title = "Linear Regression of Positive Affect By Condition When Novel",
+       x = "Day",
+       y = "Positive Affect") +
+      scale_y_continuous(limits=c(1,7)) 
+```
+
+# Daily NA Moderators
+
+```{r, include=TRUE}
+#L2 Condition, L1 vary slope model & social
+conditionXsocial_na <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new*overall_social + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionXsocial_na)
+performance::icc(conditionXsocial_na) ##proportion of variance between participants (level 2)
+
+ggplot(FullTotals_Curiosity, 
+       aes(x = CheckinDay, y = Daily_NA, group = overall_social, color = overall_social)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Curiosity Condition Average Negative Positive Affect When Social",
+       x = "Intervention Day",
+       y = "Negative Affect") +
+       scale_y_continuous(limits=c(1,7))
+
+ggplot(FullTotals_Curiosity, 
+       aes(x = CheckinDay, y = Daily_NA, group = overall_social, color = overall_social)) + 
+       geom_smooth(method = "lm") +
+       labs(title = "Linear Regression of Curiosity Condition Negative Affect When Social",
+       x = "Day",
+       y = "Negative Affect") +
+      scale_y_continuous(limits=c(1,7)) 
+
+#L2 Condition, L1 vary slope model & social
+curiosityXsocial_na <- lmer(Daily_NA ~ 1  + CheckinDay_new*overall_social + (1 + CheckinDay_new| Participant.ID), data=FullTotals_Curiosity, REML = FALSE)
+summary(curiosityXsocial_na)
+
+#L2 Condition, L1 vary slope model & novelty
+conditionXnovelty_na <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new*overall_novelty + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionXnovelty_na)
+performance::icc(conditionXnovelty_na) ##proportion of variance between participants (level 2)
+
+ggplot(FullTotals_Curiosity, 
+       aes(x = CheckinDay, y = Daily_NA, group = overall_novelty, color = overall_novelty)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Curiosity Condition Average Daily Negative Affect When Novel Behavior",
+       x = "Intervention Day",
+       y = "Negative Affect") +
+       scale_y_continuous(limits=c(1,7))
+
+ggplot(FullTotals_Curiosity, 
+       aes(x = CheckinDay, y = Daily_NA, group = overall_novelty, color = overall_novelty)) + 
+       geom_smooth(method = "lm") +
+       labs(title = "Linear Regression of Curiosity Condition Negative Affect When Novel Behavior",
+       x = "Day",
+       y = "Negative Affect") +
+      scale_y_continuous(limits=c(1,7)) 
+
+#L2 Condition, L1 vary slope model & novelty
+curiosityXnovel_na <- lmer(Daily_NA ~ 1  + CheckinDay_new*overall_novelty + (1 + CheckinDay_new| Participant.ID), data=FullTotals_Curiosity, REML = FALSE)
+summary(curiosityXnovel_na)
+
+```
+
+# Daily Curiosity Moderators
+
+```{r, include=TRUE}
+#Social
+#L2 Condition, L1 vary slope model & social
+conditionXsocial_cur <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new*overall_social + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionXsocial_cur)
+performance::icc(conditionXsocial_cur) ##proportion of variance between participants (level 2)
+
+emmeans::emmeans(conditionXsocial_cur, pairwise ~ condition_dummy * overall_social)
+
+trends2 <- emmeans::emtrends(conditionXsocial_cur, var = "CheckinDay_new", specs = c("condition_dummy", "overall_social"))
+emmeans::contrast(trends2, method = "pairwise")
+
+
+FullTotals_Curiosity <- FullTotals %>% filter(FullTotals$condition_dummy == 1)
+ggplot(FullTotals_Curiosity, 
+       aes(x = CheckinDay, y = Daily_curiosity, group = overall_social, color = overall_social)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Curiosity Condition Average Daily Curiosity Rating When Social",
+       x = "Intervention Day",
+       y = "Curiosity Rating") +
+       scale_y_continuous(limits=c(1,7))
+
+ggplot(FullTotals_Curiosity, 
+       aes(x = CheckinDay, y = Daily_curiosity, group = overall_social, color = overall_social)) + 
+       geom_smooth(method = "lm") +
+       labs(title = "Linear Regression of Curiosity Condition Curiosity Rating When Social",
+       x = "Day",
+       y = "Curiosity Rating") +
+      scale_y_continuous(limits=c(1,7)) 
+
+#Dummy codes
+curiosityXsocial_dummycur <- lmer(Daily_curiosity ~ 1  + controlgroup_social*CheckinDay_new 
+                                             + curiositygroup_NOsocial*CheckinDay_new 
+                                             + curiositygroup_social*CheckinDay_new 
+                                             + (1  + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(curiosityXsocial_dummycur)
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_curiosity, group = overall_social_name, color = overall_social_name)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Average Daily Curiosity When Social by Condition",
+       x = "Intervention Day",
+       y = "Daily Curiosity") +
+       scale_y_continuous(limits=c(1,7))
+
+ggsave("curiosityxsocial.png", plot = last_plot())
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_curiosity, group = overall_social_name, color = overall_social_name)) + 
+       geom_smooth(method = "lm") +
+       labs(title = "Linear Regression of Daily Curiosity By Condition When Social",
+       x = "Day",
+       y = "Daily Curiosity") +
+      scale_y_continuous(limits=c(1,7)) 
+
+#Novelty
+#L2 Condition, L1 vary slope model & novelty
+conditionXnovelty_cur <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new*overall_novelty + (1 + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(conditionXnovelty_cur)
+performance::icc(conditionXnovelty_cur) ##proportion of variance between participants (level 2)
+
+emmeans::emmeans(conditionXnovelty_cur, pairwise ~ condition_dummy * overall_novelty)
+
+trends3 <- emmeans::emtrends(conditionXnovelty_cur, var = "CheckinDay_new", specs = c("condition_dummy", "overall_novelty"))
+emmeans::contrast(trends3, method = "pairwise")
+
+
+ggplot(FullTotals_Curiosity, 
+       aes(x = CheckinDay, y = Daily_curiosity, group = overall_novelty, color = overall_novelty)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Curiosity Condition Average Daily Curiosity Rating When Novel Behavior",
+       x = "Intervention Day",
+       y = "Curiosity Rating") +
+       scale_y_continuous(limits=c(1,7))
+
+ggplot(FullTotals_Curiosity, 
+       aes(x = CheckinDay, y = Daily_curiosity, group = overall_novelty, color = overall_novelty)) + 
+       geom_smooth(method = "lm") +
+       labs(title = "Linear Regression of Curiosity Condition Curiosity Rating When Novel Behavior",
+       x = "Day",
+       y = "Curiosity Rating") +
+      scale_y_continuous(limits=c(1,7)) 
+
+#L2 Condition, L1 vary slope model & novelty
+curiosityXnovel_cur <- lmer(Daily_curiosity ~ 1  + CheckinDay_new*overall_novelty + (1 + CheckinDay_new| Participant.ID), data=FullTotals_Curiosity, REML = FALSE)
+summary(curiosityXnovel_cur)
+
+curiosityXnovel_con <- lmer(Daily_curiosity ~ 1  + CheckinDay_new*overall_novelty + (1 + CheckinDay_new| Participant.ID), data=FullTotals_Control, REML = FALSE)
+summary(curiosityXnovel_con)
+
+#Dummy codes
+curiosityXnovel_dummycur <- lmer(Daily_curiosity ~ 1  + controlgroup_novelty*CheckinDay_new 
+                                             + curiositygroup_NOnovelty*CheckinDay_new 
+                                             + curiositygroup_novelty*CheckinDay_new 
+                                             + (1  + CheckinDay_new| Participant.ID), data=FullTotals, REML = FALSE)
+summary(curiosityXnovel_dummycur)
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_curiosity, group = overall_novelty_name, color = overall_novelty_name)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Average Daily Curiosity When Novel by Condition",
+       x = "Intervention Day",
+       y = "Daily Curiosity") +
+       scale_y_continuous(limits=c(1,7))
+
+ggsave("curiosityxnovel.png", plot = last_plot())
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_curiosity, group = overall_novelty_name, color = overall_novelty_name)) + 
+       geom_smooth(method = "lm") +
+       labs(title = "Linear Regression of Daily Curiosity By Condition When Novel",
+       x = "Day",
+       y = "Daily Curiosity") +
+      scale_y_continuous(limits=c(1,7)) 
+
+```
+
+# Daily Outcomes - Race and Gender Moderators
+
+```{r, include=TRUE}
+#Positive Affect
+PA_conditionxlatino <- lmer(Daily_PA ~ 1  + condition_dummy*CheckinDay_new*latinx_dummy + (1 + CheckinDay_new | Participant.ID), data=FullTotals, REML = FALSE)
+summary(PA_conditionxlatino)
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_PA, group = interaction(Condition, latinx_dummy), color = latinx_dummy, shape = Condition)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Average Daily PA by Condition and Latinx vs. Not",
+       x = "Intervention Day",
+       y = "Daily PA") +
+       scale_y_continuous(limits=c(1,7))
+
+PA_conditionxasian <- lmer(Daily_PA ~ 1  + condition_dummy*CheckinDay_new*asian_dummy + (1 | Participant.ID), data=FullTotals, REML = FALSE)
+summary(PA_conditionxasian)
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_PA, group = interaction(Condition, asian_dummy), color = asian_dummy, shape = Condition)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Average Daily PA by Condition and Asian vs. Not",
+       x = "Intervention Day",
+       y = "Daily PA") +
+       scale_y_continuous(limits=c(1,7))
+
+PA_conditionxgender <- lmer(Daily_PA ~ 1  + condition_dummy*CheckinDay_new*gender_dummy + (1 | Participant.ID), data=FullTotals, REML = FALSE) #Not-converging
+
+#Negative Affect
+NA_conditionxlatino <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new*latinx_dummy + (1 + CheckinDay_new | Participant.ID), data=FullTotals, REML = FALSE)
+summary(NA_conditionxlatino)
+
+NA_conditionxasian <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new*asian_dummy + (1 | Participant.ID), data=FullTotals, REML = FALSE)
+summary(NA_conditionxasian)
+
+NA_conditionxgender <- lmer(Daily_NA ~ 1  + condition_dummy*CheckinDay_new*gender_dummy + (1 | Participant.ID), data=FullTotals, REML = FALSE) #Not-converging
+
+#Curiosity
+Cur_conditionxlatino <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new*latinx_dummy + (1 + CheckinDay_new | Participant.ID), data=FullTotals, REML = FALSE)
+summary(Cur_conditionxlatino)
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_curiosity, group = interaction(Condition, latinx_dummy), color = latinx_dummy, shape = Condition)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Average Daily Curiosity by Condition by Latinx vs. Not",
+       x = "Intervention Day",
+       y = "Daily Curiosity") +
+       scale_y_continuous(limits=c(1,7))
+
+Cur_conditionxasian <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new*asian_dummy + (1 | Participant.ID), data=FullTotals, REML = FALSE)
+summary(Cur_conditionxasian)
+
+ggplot(FullTotals, 
+       aes(x = CheckinDay, y = Daily_curiosity, group = interaction(Condition, asian_dummy), color = asian_dummy, shape = Condition)) + 
+       geom_point(stat = 'summary', fun = 'mean') + 
+       geom_line(stat = 'summary', fun = 'mean') + 
+       labs(title = "Average Daily Curiosity by Condition by Asian vs. Not",
+       x = "Intervention Day",
+       y = "Daily Curiosity") +
+       scale_y_continuous(limits=c(1,7))
+
+Cur_conditionxgender <- lmer(Daily_curiosity ~ 1  + condition_dummy*CheckinDay_new*gender_dummy + (1 | Participant.ID), data=FullTotals, REML = FALSE) #Not-converging
+
+```
+
